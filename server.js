@@ -1,37 +1,76 @@
 const express = require("express");
+const cors = require("cors");
 const axios = require("axios");
 const path = require("path");
-const cors = require("cors");
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.static(path.join(__dirname, "public"))); // serve public folder
 
-// Serve static files (Frontend)
-app.use(express.static(path.join(__dirname, "public")));
+// Categories & endpoints
+const categories = {
+  waifu: "https://api.waifu.pics/sfw/waifu",
+  neko: "https://api.waifu.pics/sfw/neko",
+  dog: "https://some-random-api.ml/img/dog",
+  cat: "https://some-random-api.ml/img/cat",
+  meme: "https://meme-api.com/gimme",
+  placeholder: "https://picsum.photos/400/300"
+};
 
-const IMAGE_GEN_API_URL = "https://api.deepai.org/api/text2img"; // Free AI Image Generator
+// Image generator
+app.get("/api/generate", async (req, res) => {
+  const type = req.query.type;
+  if (!type || !categories[type]) {
+    return res.status(400).json({ error: "Invalid or missing 'type' query." });
+  }
 
-app.post("/api/generate-image", async (req, res) => {
-    const { prompt } = req.body;
+  try {
+    if (type === "placeholder") return res.json({ image: categories[type] });
 
-    if (!prompt) {
-        return res.status(400).json({ error: "Please provide a prompt for image generation." });
+    const response = await axios.get(categories[type]);
+    let imageUrl;
+    switch (type) {
+      case "waifu":
+      case "neko":
+        imageUrl = response.data.url;
+        break;
+      case "dog":
+      case "cat":
+        imageUrl = response.data.link;
+        break;
+      case "meme":
+        imageUrl = response.data.url;
+        break;
+      default:
+        imageUrl = categories[type];
     }
 
-    try {
-        const response = await axios.post(
-            IMAGE_GEN_API_URL,
-            { text: prompt },
-            { headers: { "Content-Type": "application/json" } }
-        );
+    res.json({ image: imageUrl, type });
+  } catch (error) {
+    console.error("Image fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch image." });
+  }
+});
 
-        res.json({ image_url: response.data.output_url });
-    } catch (error) {
-        console.error("Image generation error:", error);
-        res.status(500).json({ error: "Failed to generate image." });
-    }
+// Lexica endpoint
+app.get("/api/lexica", async (req, res) => {
+  const prompt = req.query.prompt;
+  if (!prompt) return res.status(400).json({ error: "Missing prompt." });
+
+  try {
+    const response = await axios.get(`https://lexica.art/api/v1/search?q=${encodeURIComponent(prompt)}`);
+    const results = response.data.images;
+    res.json({ images: results });
+  } catch (error) {
+    console.error("Lexica API error:", error);
+    res.status(500).json({ error: "Failed to fetch from Lexica." });
+  }
+});
+
+// Fallback to serve index.html for all other routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Image Generation API running at http://localhost:${PORT}`))
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
