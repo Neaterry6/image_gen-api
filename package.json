@@ -1,0 +1,15 @@
+{
+  "name": "image-gen-api",
+  "version": "1.0.0",
+  "description": "AI Image Generation API using DeepAI (No API Key Required)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.4.0",
+    "cors": "^2.8.5"
+  },
+  "author": "Your Name",
+  "license": "MIT"
